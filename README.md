@@ -1,32 +1,43 @@
-# Afford Medical - Backend Internship Evaluation
+# Afford Medical - Backend Notification System
 
-Backend services for Afford Medical Technologies covering Vehicle Maintenance Scheduling and Campus Notifications.
+A complete FastAPI backend implementation for campus notification distribution with vehicle maintenance scheduler integration.
+
+## Complete 6-Stage Implementation ✅
+
+| Stage | Name | Status | Implementation |
+|-------|------|--------|-----------------|
+| 1 | REST API Design | ✅ | 6 endpoints with validation |
+| 2 | Database Integration | ✅ | SQLAlchemy ORM + SQLite |
+| 3 | Query Optimization | ✅ | Composite indexes on models |
+| 4 | Caching/Performance | ✅ | Redis cache layer |
+| 5 | Bulk Notifications | ✅ | Async batch processing (100-item) |
+| 6 | Priority Inbox | ✅ | Min-heap ranking algorithm |
 
 ## Project Structure
 
 ```
 afford/
-├── logging_middleware/          # Centralized logging infrastructure
-│   ├── __init__.py
-│   ├── logger.py               # LoggerService with structured logging
-│   └── middleware.py           # FastAPI middleware for request/response logging
+├── logging_middleware/          # Structured JSON logging & middleware
+│   ├── logger.py               # LoggerService with correlation IDs
+│   └── middleware.py           # HTTP request/response tracking
 │
-├── vehicle_maintenance_scheduler/  # Knapsack optimization for maintenance
-│   ├── __init__.py
-│   ├── scheduler.py            # Core scheduling algorithm (0/1 knapsack)
-│   └── handler.py              # API integration and orchestration
+├── notification_app_be/         # Campus notification system (Stages 1-6)
+│   ├── models.py               # SQLAlchemy ORM + indexes (Stage 3)
+│   ├── cache.py                # Redis CacheManager (Stage 4)
+│   ├── bulk.py                 # Async batch processing (Stage 5)
+│   ├── handler/                # Request orchestration
+│   ├── service/                # Business logic + priority scoring (Stage 6)
+│   ├── repository/             # Data access layer
+│   └── route/                  # FastAPI endpoints (Stage 1)
 │
-├── notification_app_be/         # Campus notification system backend
-│   ├── handler/               # Request handlers
-│   ├── service/               # Business logic
-│   ├── repository/            # Data access layer
-│   └── route/                 # FastAPI route definitions
+├── vehicle_maintenance_scheduler/  # Vehicle maintenance optimization
+│   ├── scheduler.py            # 0/1 Knapsack DP algorithm
+│   └── handler.py              # Afford API integration
 │
 ├── main.py                     # FastAPI application entry point
-├── test_scheduler.py           # Scheduler testing script
-├── notification_system_design.md  # Complete design documentation (Stages 1-6)
-├── find_secret.py             # Credentials discovery script
-└── requirements.txt           # Python dependencies
+├── afford.db                   # SQLite database
+├── logs/                       # Structured JSON logs
+└── requirements.txt            # Python dependencies
 ```
 
 ## Features
@@ -66,135 +77,292 @@ Solves the **0/1 Knapsack Problem** using Dynamic Programming to optimize vehicl
 - Multi-depot scheduling
 - Efficiency reporting
 
-**Run Test:**
-```bash
-python test_scheduler.py
-```
-
 ### 3. Campus Notification System
 
-#### Stage 1: REST API Design
-- GET /api/notifications - Fetch with pagination & filtering
-- PUT /api/notifications/:id/read - Mark as read
-- DELETE /api/notifications/:id - Delete
-- GET /api/notifications/unread/count - Unread count
-- WebSocket /ws/notifications - Real-time streaming
+**Stage 1: REST API Design (6 Endpoints)**
+```
+GET    /api/notifications/                    # Fetch with pagination
+PUT    /api/notifications/{id}/read           # Mark as read
+PUT    /api/notifications/read-all            # Mark all as read
+DELETE /api/notifications/{id}                # Delete notification
+GET    /api/notifications/unread/count        # Unread count by type
+GET    /api/notifications/priority/inbox      # Top-N priority notifications
+POST   /api/notifications/bulk/send           # Async bulk send
+```
 
-#### Stage 2: Database Schema
-- PostgreSQL with ACID compliance
-- Strategic indexing on (studentID, isRead, createdAt)
-- Partitioning by date for scalability
-- JSON metadata support
+**Stage 2: Database Integration**
+- SQLAlchemy ORM with SQLite
+- Notification model with columns: id, student_id, type, message, timestamp, is_read, priority
+- Database initialization on server startup
+- Support for PostgreSQL with connection string change
 
-#### Stage 3: Query Optimization
-- Optimized queries with selective columns
-- Partial indexes for common filters
-- Cost analysis and execution plans
+**Stage 3: Query Optimization**
+- Composite indexes: (student_id, is_read, timestamp)
+- Composite indexes: (student_id, type)
+- Single-column indexes on frequently filtered fields
+- Query complexity: O(log n) for indexed lookups
 
-#### Stage 4: Performance Under Load
-- Redis caching (5-min TTL)
-- WebSocket real-time push
-- Read replicas for scaling
-- Lazy loading & pagination
+**Stage 4: Performance & Caching**
+- Redis cache layer with 300-second TTL
+- Cache keys: notifications, unread_count, priority_inbox
+- Graceful degradation if Redis unavailable
+- CacheManager with automatic invalidation
 
-#### Stage 5: Bulk Notification System
-- Async batch processing (100 students/batch)
-- Retry logic with exponential backoff
-- DB-first approach (atomicity)
-- Job tracking & audit trail
+**Stage 5: Bulk Notifications**
+- Async batch processing with 100-item batches
+- Background task execution
+- Error tracking and retry logic
+- Success rate calculation
+- Progress logging with batch metrics
 
-#### Stage 6: Priority Inbox
-- Min-heap for efficient top-K selection
-- Priority scoring: (type_weight × 1000) + recency
-- Type weights: Placement=3, Result=2, Event=1
-- O(log k) insertion for streaming notifications
+**Stage 6: Priority Inbox**
+- Min-heap algorithm for top-K selection
+- Priority scoring: (type_weight × 1000) + recency_factor
+- Type weights: PLACEMENT=3, RESULT=2, EVENT=1
+- Time complexity: O(n log k) where k = N
 
-## Running the Application
+## Setup & Installation
 
-### 1. Install Dependencies
+### Prerequisites
+- Python 3.11+
+- SQLite (included with Python)
+- Redis (optional, for Stage 4)
+
+### Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Start FastAPI Server
+**Key Dependencies:**
+- FastAPI 0.104.1 - Web framework
+- Uvicorn 0.24.0 - ASGI server
+- SQLAlchemy 2.0.23 - ORM
+- redis 5.0.0 - Cache client (optional)
+- httpx 0.25.0 - Async HTTP client
+
+### Start Server
 ```bash
 python main.py
 ```
+Server runs on `http://localhost:8000`
 
-Server runs on: `http://localhost:8000`
-
-API Documentation:
+### API Documentation
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
-### 3. Test Scheduler
+### Run Tests
 ```bash
-python test_scheduler.py
+python test_endpoints.py
 ```
 
 ## API Endpoints
 
-### Health Check
-```
+### 1. Health Check
+```bash
 GET /health
-GET /api/scheduler/status
 ```
+**Response:** `{"status": "healthy", "service": "afford-backend"}`
 
-### Vehicle Scheduler
+### 2. GET /api/notifications/
+Fetch paginated notifications for a student
+```bash
+curl -X GET "http://localhost:8000/api/notifications/?student_id=S001&page=1&limit=10"
 ```
-POST /api/scheduler/schedule
-Runs complete scheduling workflow
-```
-
-### Notifications
-```
-GET /api/notifications?page=1&limit=20&type=Placement&isRead=false
-PUT /api/notifications/{id}/read
-PUT /api/notifications/read-all
-DELETE /api/notifications/{id}
-GET /api/notifications/unread/count
-GET /api/notifications/priority/inbox?n=10
-```
-
-## Logging
-
-Logs are stored in `logs/` directory with structured JSON format.
-
-### Log Example
+**Response:**
 ```json
 {
-  "logID": "a4aad02e-19d0-4153-86d9-58bf55d7c402",
-  "timestamp": "2026-04-22T17:51:30.123456",
-  "stack": "backend",
-  "level": "info",
-  "package": "handler",
-  "message": "Scheduling complete",
-  "context": {
-    "selected_count": 15,
-    "total_impact": 87,
-    "total_hours": 58
+  "success": true,
+  "data": [
+    {
+      "id": "uuid-1234",
+      "type": "EVENT",
+      "message": "Campus event tomorrow",
+      "timestamp": "2026-05-02T07:27:22.011Z",
+      "isRead": false,
+      "priority": "high"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 5,
+    "hasMore": false
   }
 }
 ```
 
-## Credentials
+### 3. PUT /api/notifications/{notification_id}/read
+Mark a single notification as read
+```bash
+curl -X PUT "http://localhost:8000/api/notifications/abc123/read?student_id=S001"
+```
 
-**Registered User:**
-- Email: anikitha_kunapareddy@srmap.edu.in
-- Name: Kunapareddy Nikitha
-- Roll No: AP23110011376
-- ClientID: 7f1331dd-c33a-4e79-97e5-8d014932869a
-- ClientSecret: KbkdTVytDpmAmnUk
+### 4. PUT /api/notifications/read-all
+Mark all notifications as read for a student
+```bash
+curl -X PUT "http://localhost:8000/api/notifications/read-all?student_id=S001"
+```
 
-## Design Documentation
+### 5. DELETE /api/notifications/{notification_id}
+Delete a notification
+```bash
+curl -X DELETE "http://localhost:8000/api/notifications/abc123?student_id=S001"
+```
 
-See `notification_system_design.md` for comprehensive documentation covering:
-- REST API contract (Stage 1)
-- Database schema & scalability (Stage 2)
-- Query optimization (Stage 3)
-- Performance strategies (Stage 4)
-- Bulk notifications (Stage 5)
-- Priority inbox implementation (Stage 6)
+### 6. GET /api/notifications/unread/count
+Get unread notification count by type
+```bash
+curl -X GET "http://localhost:8000/api/notifications/unread/count?student_id=S001"
+```
+**Response:**
+```json
+{
+  "success": true,
+  "unreadCount": 3,
+  "byType": {
+    "EVENT": 1,
+    "RESULT": 2,
+    "PLACEMENT": 0
+  }
+}
+```
+
+### 7. GET /api/notifications/priority/inbox
+Get top-N priority notifications (Stage 6)
+```bash
+curl -X GET "http://localhost:8000/api/notifications/priority/inbox?student_id=S001&n=5"
+```
+**Priority Score Formula:** `(type_weight × 1000) + recency_factor`
+- PLACEMENT: weight 3
+- RESULT: weight 2
+- EVENT: weight 1
+
+### 8. POST /api/notifications/bulk/send (Stage 5)
+Send notifications to multiple students asynchronously
+```bash
+curl -X POST "http://localhost:8000/api/notifications/bulk/send" \
+  -H "Content-Type: application/json" \
+  -d '[
+    {"student_id": "S001", "type": "EVENT", "message": "Campus event"},
+    {"student_id": "S002", "type": "RESULT", "message": "Exam result"},
+    {"student_id": "S003", "type": "PLACEMENT", "message": "Job interview"}
+  ]'
+```
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Processing 3 notifications",
+  "count": 3
+}
+```
+**Processing:** Batches of 100 items, async execution with 0.1s delays
+
+### 9. GET /api/scheduler/status
+Get vehicle scheduler operational status
+```bash
+curl -X GET "http://localhost:8000/api/scheduler/status"
+```
+**Response:**
+```json
+{
+  "status": "operational",
+  "service": "Vehicle Maintenance Scheduler",
+  "endpoints": {
+    "schedule": "/api/scheduler/schedule",
+    "depots": "/api/scheduler/depots",
+    "vehicles": "/api/scheduler/vehicles"
+  }
+}
+```
+
+### 10. GET /api/scheduler/depots
+Fetch depot information from Afford API
+```bash
+curl -X GET "http://localhost:8000/api/scheduler/depots"
+```
+
+### 11. GET /api/scheduler/vehicles
+Fetch vehicle information from Afford API
+```bash
+curl -X GET "http://localhost:8000/api/scheduler/vehicles"
+```
+
+### 12. POST /api/scheduler/schedule
+Run vehicle maintenance scheduling algorithm
+```bash
+curl -X POST "http://localhost:8000/api/scheduler/schedule"
+```
+
+## Real API Integration
+
+### Afford Medical Evaluation Service
+The system integrates with real Afford APIs for vehicle maintenance scheduling:
+
+**Authentication:**
+- ClientID: `7f1331dd-c33a-4e79-97e5-8d014932869a`
+- ClientSecret: `KbkdTVytDpmAmnUk`
+- Token Endpoint: `/auth` (returns 15-minute JWT)
+
+**Endpoints:**
+- `GET /depots` - Returns 4 mechanic service depots with capacity hours
+- `GET /vehicles` - Returns 36+ vehicles with task IDs, durations, and impact scores
+- `POST /scheduler/schedule` - Runs 0/1 Knapsack DP algorithm
+
+**Integration Results:**
+- ✅ Depots retrieved: 4 (60, 135, 188, 97 mechanic hours)
+- ✅ Vehicles retrieved: 36+ with maintenance tasks
+- ✅ Scheduler algorithm executed successfully
+- ✅ JWT authentication working (15-minute tokens)
+
+## Database
+
+### Schema
+- **Engine:** SQLite (afford.db)
+- **Size:** ~50 MB
+- **Tables:** notifications
+- **Indexes:** Composite indexes for optimized queries
+
+### Notification Model
+```python
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    id = Column(String, primary_key=True)
+    student_id = Column(String, index=True)
+    type = Column(String, index=True)  # EVENT, RESULT, PLACEMENT
+    message = Column(String)
+    timestamp = Column(DateTime, index=True)
+    is_read = Column(Boolean, index=True)
+    priority = Column(String)
+```
+
+### Indexes for Optimization (Stage 3)
+```python
+Index('idx_student_read_created', 'student_id', 'is_read', 'timestamp')
+Index('idx_student_type', 'student_id', 'type')
+Index('idx_student_created', 'student_id', 'timestamp')
+```
+
+## Caching Strategy (Stage 4)
+
+### Redis Cache Configuration
+```python
+# Cache keys with TTL = 300 seconds (5 minutes)
+notifications:{student_id}:page:{page}:limit:{limit}
+unread_count:{student_id}
+priority_inbox:{student_id}:top:{n}
+```
+
+### Cache Invalidation
+- Automatic on write operations
+- Manual clear on DELETE
+- Pattern-based cleanup on modifications
+
+### Graceful Degradation
+- If Redis unavailable, queries database directly
+- No cache = functional but slower
+- Logs warning when cache disabled
 
 ## Key Implementation Details
 
